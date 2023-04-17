@@ -440,10 +440,12 @@ static const struct attribute_group attr_group = {
 };
 
 static struct miscdevice ics9lpr363_device = 
-    {
+{
 	.minor = MISC_DYNAMIC_MINOR,
 	.name = "ics9lpr363_pll",
-    };
+};
+
+module_param_named(fsb_freq_init, fsb_freq, int, 0644);
 
 static int __init ics9lpr363_init(void)
 {
@@ -466,6 +468,41 @@ static int __init ics9lpr363_init(void)
                         ics9lpr363_device.name);
 	}
 
+    if (fsb_freq != -1)
+    {
+        struct device * dev = ics9lpr363_device.this_device;
+        if (fsb_freq < FSB_MIN || fsb_freq > FSB_MAX)
+        {
+            dev_err(dev, "Wrong FSB value (%d). Limits: %d-%d.\n",
+                            fsb_freq, FSB_MIN, FSB_MAX);
+            fsb_freq = -1;
+            goto exit;
+        }
+
+        if (pll_m != 8)
+        {
+            dev_warn(dev, "PLL M == %d. Force setting to %d.\n",
+                            pll_m, 8);
+            pll_m = 8;
+        }
+
+        fsb_freq += 2; // Mathematics compensation
+
+        pll_step = (unsigned int)(fsb_freq - FSB_MIN) * 10U / 3578U; // 0.35789474
+        pll_step = (pll_step < 0x00 ? 0x00 : (pll_step > 0x2ff ? 0x2ff : pll_step));
+        ret = ics9lpr363_SetFSB(dev, (enum SetLogic)byPllStep);
+
+        ret |= ics9lpr363_GetFSB(dev);
+        if (ret)
+        {
+            dev_err(dev, "Error: %d. Try to set FSB Frequency via sysfs.\n", ret);
+            goto exit;
+        }
+
+        dev_info(dev, "Init: Set FSB Frequency to %d KHz.\n", fsb_freq);
+    }
+
+exit:
     return 0;
 }
 

@@ -4,7 +4,7 @@
  *   Author: wlkmanist <vlad.king5555@mail.ru>, (C) 2023
  *           t.me/wlkmanist
  *
- *   black.electronics
+ *   project.black
  * 
  */
 
@@ -446,6 +446,7 @@ static struct miscdevice ics9lpr363_device =
 };
 
 module_param_named(fsb_freq_init, fsb_freq, int, 0644);
+module_param(i2c_adapter, int, 0644);
 
 static int __init ics9lpr363_init(void)
 {
